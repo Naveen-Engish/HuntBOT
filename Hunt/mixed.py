@@ -1,4 +1,4 @@
-import telebot
+    import telebot
 import csv
 import time
 
@@ -71,7 +71,10 @@ def get_mobile_number(message):
 def confirm_details(call):
     bot.answer_callback_query(call.id)
     bot.send_message(call.message.chat.id, "Details confirmed. Thank you!")
-    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+    
+    # Only attempt to edit the message if there is a reply markup to remove
+    if call.message.reply_markup:
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     
     # Save the team info to a CSV file named 'players.csv'
     save_team_info_to_csv()
