@@ -11,6 +11,7 @@ all_team_info = []
 
 # Start the clock when the script is first run
 start_time = time.time()
+TIME_LIMIT_SECONDS = 30  # Set the time limit to 30 seconds
 
 # Function to handle the team leader's mobile number input
 @bot.message_handler(commands=['start'])
@@ -19,6 +20,12 @@ def start(message):
 
 @bot.message_handler(func=lambda message: True)
 def get_mobile_number(message):
+    # Check if 30 seconds have passed
+    elapsed_time = time.time() - start_time
+    if elapsed_time > TIME_LIMIT_SECONDS:
+        bot.send_message(message.chat.id, "Time limit exceeded. You can no longer add new teams.")
+        return
+
     mobile_number = message.text
     global team_info  # Ensure that we're modifying the global team_info dictionary
 
@@ -73,20 +80,31 @@ def get_mobile_number(message):
 
 # Function to check if a team is already registered
 def is_team_already_registered(mobile_number):
-    with open("players.csv", mode='r') as file:
-        csv_reader = csv.reader(file)
-        next(csv_reader)  # Skip the header
+    try:
+        with open("players.csv", mode='r') as file:
+            csv_reader = csv.reader(file)
+            next(csv_reader)  # Skip the header
 
-        # Check if the mobile number already exists
-        for row in csv_reader:
-            if row[7] == mobile_number:  # Assuming mobile number is stored at index 2
-                return True
+            # Check if the mobile number already exists
+            for row in csv_reader:
+                if row[7] == mobile_number:  # Assuming mobile number is stored at index 7
+                    return True
+    except FileNotFoundError:
+        # File not found, meaning no teams have been registered yet
+        return False
     return False
 
 # Handle the confirmation button click
 @bot.callback_query_handler(func=lambda call: call.data == "confirm")
 def confirm_details(call):
     bot.answer_callback_query(call.id)
+
+    # Check if 30 seconds have passed
+    elapsed_time = time.time() - start_time
+    if elapsed_time > TIME_LIMIT_SECONDS:
+        bot.send_message(call.message.chat.id, "Time limit exceeded. You can no longer add new teams.")
+        return
+
     bot.send_message(call.message.chat.id, "Details confirmed. Thank you!")
     
     # Only attempt to edit the message if there is a reply markup to remove
