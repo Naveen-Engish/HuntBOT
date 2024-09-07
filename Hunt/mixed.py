@@ -11,12 +11,19 @@ all_team_info = []
 
 # Start the clock when the script is first run
 start_time = time.time()
-TIME_LIMIT_SECONDS = 30  # Set the time limit to 30 seconds
+TIME_LIMIT_SECONDS = 1000  # Set the time limit to 30 seconds
 
 # Function to handle the team leader's mobile number input
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "Please enter the team leader's mobile number:")
+    telegram_user_id = message.from_user.id
+
+    # Check if the user is already registered
+    team_name = get_team_name_by_user_id(telegram_user_id)
+    if team_name:
+        bot.send_message(message.chat.id, f"Welcome back! Your team name is '{team_name}'.")
+    else:
+        bot.send_message(message.chat.id, "Please enter the team leader's mobile number:")
 
 @bot.message_handler(func=lambda message: True)
 def get_mobile_number(message):
@@ -27,6 +34,7 @@ def get_mobile_number(message):
         return
 
     mobile_number = message.text
+    telegram_user_id = message.from_user.id  # Capture the Telegram user ID
     global team_info  # Ensure that we're modifying the global team_info dictionary
 
     if is_team_already_registered(mobile_number):
@@ -48,7 +56,8 @@ def get_mobile_number(message):
                     "Member 1 Register Number": row[9],  # 10th column
                     "Member 3 Name": row[13],  # 14th column
                     "Member 3 Register Number": row[14],  # 15th column,
-                    "Mobile Number": mobile_number
+                    "Mobile Number": mobile_number,
+                    "Telegram User ID": telegram_user_id
                 }
                 break
 
@@ -141,7 +150,8 @@ def save_team_info_to_csv():
                 "Member 1 Register Number", 
                 "Member 3 Name", 
                 "Member 3 Register Number",
-                "Mobile Number"
+                "Mobile Number",
+                "Telegram User ID"
             ])
         
         # Write team information
@@ -153,8 +163,25 @@ def save_team_info_to_csv():
             team_info.get("Member 1 Register Number", ""),
             team_info.get("Member 3 Name", ""),
             team_info.get("Member 3 Register Number", ""),
-            team_info.get("Mobile Number", "")
+            team_info.get("Mobile Number", ""),
+            team_info.get("Telegram User ID", "")
         ])
+
+def get_team_name_by_user_id(telegram_user_id):
+    """Function to get the team name by the user's Telegram ID."""
+    try:
+        with open("players.csv", mode='r') as file:
+            csv_reader = csv.reader(file)
+            next(csv_reader)  # Skip the header
+
+            # Check if the user's Telegram ID already exists
+            for row in csv_reader:
+                if row[8] == str(telegram_user_id):  # Assuming Telegram user ID is at index 8
+                    return row[0]  # Return the team name
+    except FileNotFoundError:
+        # File not found, meaning no teams have been registered yet
+        return None
+    return None
 
 def handle_team_confirmation():
     """Handle a single team's confirmation and display their team number."""
