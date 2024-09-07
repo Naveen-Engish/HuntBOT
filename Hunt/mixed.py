@@ -22,6 +22,10 @@ def get_mobile_number(message):
     mobile_number = message.text
     global team_info  # Ensure that we're modifying the global team_info dictionary
 
+    if is_team_already_registered(mobile_number):
+        bot.send_message(message.chat.id, "This team is already registered.")
+        return
+
     with open("student.csv", mode='r') as file:
         csv_reader = csv.reader(file)
         header = next(csv_reader)  # Skip the header
@@ -36,7 +40,8 @@ def get_mobile_number(message):
                     "Member 1 Name": row[8],  # 9th column
                     "Member 1 Register Number": row[9],  # 10th column
                     "Member 3 Name": row[13],  # 14th column
-                    "Member 3 Register Number": row[14],  # 15th column
+                    "Member 3 Register Number": row[14],  # 15th column,
+                    "Mobile Number": mobile_number
                 }
                 break
 
@@ -65,6 +70,18 @@ def get_mobile_number(message):
         bot.send_message(message.chat.id, "Please confirm the details:", reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "Mobile number not found. Please try again.")
+
+# Function to check if a team is already registered
+def is_team_already_registered(mobile_number):
+    with open("players.csv", mode='r') as file:
+        csv_reader = csv.reader(file)
+        next(csv_reader)  # Skip the header
+
+        # Check if the mobile number already exists
+        for row in csv_reader:
+            if row[7] == mobile_number:  # Assuming mobile number is stored at index 2
+                return True
+    return False
 
 # Handle the confirmation button click
 @bot.callback_query_handler(func=lambda call: call.data == "confirm")
@@ -105,7 +122,8 @@ def save_team_info_to_csv():
                 "Member 1 Name", 
                 "Member 1 Register Number", 
                 "Member 3 Name", 
-                "Member 3 Register Number"
+                "Member 3 Register Number",
+                "Mobile Number"
             ])
         
         # Write team information
@@ -116,7 +134,8 @@ def save_team_info_to_csv():
             team_info.get("Member 1 Name", ""),
             team_info.get("Member 1 Register Number", ""),
             team_info.get("Member 3 Name", ""),
-            team_info.get("Member 3 Register Number", "")
+            team_info.get("Member 3 Register Number", ""),
+            team_info.get("Mobile Number", "")
         ])
 
 def handle_team_confirmation():
