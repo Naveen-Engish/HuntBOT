@@ -1,4 +1,4 @@
-    import telebot
+import telebot
 import csv
 import time
 
@@ -73,9 +73,14 @@ def confirm_details(call):
     bot.send_message(call.message.chat.id, "Details confirmed. Thank you!")
     
     # Only attempt to edit the message if there is a reply markup to remove
-    if call.message.reply_markup:
-        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-    
+    if call.message.reply_markup is not None:
+        try:
+            # Attempt to remove the reply markup
+            bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+        except telebot.apihelper.ApiTelegramException as e:
+            # Handle the exception if the message cannot be modified
+            print(f"Error while trying to edit message: {e}")
+
     # Save the team info to a CSV file named 'players.csv'
     save_team_info_to_csv()
 
