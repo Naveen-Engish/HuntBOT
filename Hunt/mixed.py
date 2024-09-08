@@ -1,6 +1,5 @@
 import telebot
 import csv
-import time
 
 # Initialize the bot with your bot token
 bot = telebot.TeleBot("6984563188:AAGCTJwsjeJnDclHTxI24H0D8twp5Tlr-JY")
@@ -9,9 +8,7 @@ bot = telebot.TeleBot("6984563188:AAGCTJwsjeJnDclHTxI24H0D8twp5Tlr-JY")
 team_info = {}
 all_team_info = []
 
-# Start the clock when the script is first run
-start_time = time.time()
-TIME_LIMIT_SECONDS = 10  # Set the time limit to 1000 seconds
+MAX_TEAMS = 6  # Maximum number of teams allowed
 
 # Function to handle the team leader's mobile number input
 @bot.message_handler(commands=['start'])
@@ -22,6 +19,8 @@ def start(message):
     team_name = get_team_name_by_user_id(telegram_user_id)
     if team_name:
         bot.send_message(message.chat.id, f"Welcome back! Your team name is '{team_name}'.")
+    elif len(all_team_info) >= MAX_TEAMS:
+        bot.send_message(message.chat.id, "Registration is closed as we already have 6 teams.")
     else:
         bot.send_message(message.chat.id, "Please enter the team leader's mobile number:")
 
@@ -34,10 +33,9 @@ def get_mobile_number(message):
         bot.send_message(message.chat.id, f"You're already registered! Welcome back, team '{team_name}'.")
         return
 
-    # Check if 30 seconds have passed
-    elapsed_time = time.time() - start_time
-    if elapsed_time > TIME_LIMIT_SECONDS:
-        bot.send_message(message.chat.id, "Time limit exceeded. You can no longer add new teams.")
+    # Check if the maximum number of teams has been reached
+    if len(all_team_info) >= MAX_TEAMS:
+        bot.send_message(message.chat.id, "Registration is closed as we already have 6 teams.")
         return
 
     mobile_number = message.text
@@ -115,12 +113,6 @@ def is_team_already_registered(mobile_number):
 def confirm_details(call):
     bot.answer_callback_query(call.id)
 
-    # Check if 30 seconds have passed
-    elapsed_time = time.time() - start_time
-    if elapsed_time > TIME_LIMIT_SECONDS:
-        bot.send_message(call.message.chat.id, "Time limit exceeded. You can no longer add new teams.")
-        return
-
     bot.send_message(call.message.chat.id, "Details confirmed. Thank you!")
     
     # Only attempt to edit the message if there is a reply markup to remove
@@ -195,15 +187,25 @@ def handle_team_confirmation():
     global team_info
     if team_info:
         all_team_info.append(team_info)  # Save team info details
-        team_index = len(all_team_info)
-        print(f"Team {team_index} is ready.")
-        
-        # Calculate elapsed time since the script started
-        elapsed_time = time.time() - start_time
-        formatted_time = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-        
-        # Print the elapsed time to the console
-        print(f"Elapsed Time: {formatted_time}")
+
+        if len(all_team_info) == MAX_TEAMS:
+            display_team_sets()
+
+def display_team_sets():
+    """Display sets of teams in both console and Telegram."""
+    sets = [all_team_info[i:i+2] for i in range(0, len(all_team_info), 2)]
+    sets_message = "Teams have been divided into sets:\n"
+
+    for idx, team_set in enumerate(sets, start=1):
+        sets_message += f"\nSet {idx}:\n"
+        for team in team_set:
+            sets_message += f" - {team['Team Name']}\n"
+
+    print(sets_message)
+
+    # Send the sets information to each team member via Telegram
+    for team in all_team_info:
+        bot.send_message(team["Telegram User ID"], sets_message)
 
 if __name__ == "__main__":
     bot.polling()
