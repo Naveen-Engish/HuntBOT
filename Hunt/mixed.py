@@ -176,7 +176,7 @@ def get_team_name_by_user_id(telegram_user_id):
             # Check if the user's Telegram ID already exists
             for row in csv_reader:
                 if row[8] == str(telegram_user_id):  # Assuming Telegram user ID is at index 8
-                    return row[0]  # Return the team name
+                    return None#row[0]  # Return the team name
     except FileNotFoundError:
         # File not found, meaning no teams have been registered yet
         return None
