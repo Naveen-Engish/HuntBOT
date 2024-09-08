@@ -4,24 +4,25 @@ import csv
 # Initialize the bot with your bot token
 bot = telebot.TeleBot("6984563188:AAGCTJwsjeJnDclHTxI24H0D8twp5Tlr-JY")
 
-# Global dictionary to store team information
+# Global variables to store team information, confirmed user IDs, and current riddle index for each user
 team_info = {}
 all_team_info = []
-team_sets = {}  # Dictionary to store sets of teams
+team_sets = {}
+confirmed_users = set()
+user_riddle_index = {}  # Dictionary to store current riddle index for each user
 
 MAX_TEAMS = 4  # Maximum number of teams allowed
 
-# Example riddles to be assigned to each set
+# Example riddles and their answers
 riddles = [
-    "I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?",
-    "I’m light as a feather, yet the strongest man can’t hold me for more than 5 minutes. What am I?",
-    "The more you take, the more you leave behind. What am I?",
-    "What has keys but can’t open locks?",
-    "What can travel around the world while staying in a corner?",
-    "What has a head, a tail, but no body?"
+    {"question": "I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?", "answer": "echo"},
+    {"question": "I’m light as a feather, yet the strongest man can’t hold me for more than 5 minutes. What am I?", "answer": "breath"},
+    {"question": "The more you take, the more you leave behind. What am I?", "answer": "footsteps"},
+    {"question": "What has keys but can’t open locks?", "answer": "piano"},
+    {"question": "What can travel around the world while staying in a corner?", "answer": "stamp"},
+    {"question": "What has a head, a tail, but no body?", "answer": "coin"}
 ]
 
-# Function to handle the team leader's mobile number input
 @bot.message_handler(commands=['start'])
 def start(message):
     telegram_user_id = message.from_user.id
@@ -36,22 +37,29 @@ def start(message):
         bot.send_message(message.chat.id, "Please enter the team leader's mobile number:")
 
 @bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    telegram_user_id = message.from_user.id
+    
+    # If the user is answering a riddle
+    if telegram_user_id in user_riddle_index:
+        check_answer(message)
+    else:
+        get_mobile_number(message)
+
 def get_mobile_number(message):
-    # Check if the user is already registered
     telegram_user_id = message.from_user.id
     team_name = get_team_name_by_user_id(telegram_user_id)
     if team_name:
         bot.send_message(message.chat.id, f"You're already registered! Welcome back, team '{team_name}'.")
         return
 
-    # Check if the maximum number of teams has been reached
     if len(all_team_info) >= MAX_TEAMS:
         bot.send_message(message.chat.id, "Registration is closed as we already have 6 teams.")
         return
 
-    mobile_number = message.text
+    mobile_number = message.text.strip()
 
-    global team_info  # Ensure that we're modifying the global team_info dictionary
+    global team_info
 
     if is_team_already_registered(mobile_number):
         bot.send_message(message.chat.id, "This team is already registered.")
@@ -59,26 +67,24 @@ def get_mobile_number(message):
 
     with open("student.csv", mode='r') as file:
         csv_reader = csv.reader(file)
-        header = next(csv_reader)  # Skip the header
+        header = next(csv_reader)
 
-        # Iterate through rows to find the matching mobile number
         for row in csv_reader:
-            if row[5] == mobile_number:  # 6th column is at index 5
+            if row[5] == mobile_number:
                 team_info = {
-                    "Team Name": row[2],  # 3rd column
-                    "Team Leader Name": row[3],  # 4th column
-                    "Team Leader Register Number": row[4],  # 5th column
-                    "Member 1 Name": row[8],  # 9th column
-                    "Member 1 Register Number": row[9],  # 10th column
-                    "Member 3 Name": row[13],  # 14th column
-                    "Member 3 Register Number": row[14],  # 15th column,
+                    "Team Name": row[2],
+                    "Team Leader Name": row[3],
+                    "Team Leader Register Number": row[4],
+                    "Member 1 Name": row[8],
+                    "Member 1 Register Number": row[9],
+                    "Member 3 Name": row[13],
+                    "Member 3 Register Number": row[14],
                     "Mobile Number": mobile_number,
                     "Telegram User ID": telegram_user_id
                 }
                 break
 
     if team_info:
-        # Create a neat and sectioned message with the team information
         message_text = (
             f"📋 *Team Information:*\n\n"
             f"*🏷️ Team Name:*\n{team_info['Team Name']}\n\n"
@@ -92,10 +98,8 @@ def get_mobile_number(message):
             f"- Name: {team_info['Member 3 Name']}\n"
             f"- Register Number: {team_info['Member 3 Register Number']}\n"
         )
-        # Send the neatly formatted and sectioned team information to the user
         bot.send_message(message.chat.id, message_text, parse_mode='Markdown')
 
-        # Ask for confirmation
         markup = telebot.types.InlineKeyboardMarkup()
         confirm_button = telebot.types.InlineKeyboardButton("Confirm", callback_data="confirm")
         markup.add(confirm_button)
@@ -103,54 +107,50 @@ def get_mobile_number(message):
     else:
         bot.send_message(message.chat.id, "Mobile number not found. Please try again.")
 
-# Function to check if a team is already registered
 def is_team_already_registered(mobile_number):
     try:
         with open("players.csv", mode='r') as file:
             csv_reader = csv.reader(file)
-            next(csv_reader)  # Skip the header
+            next(csv_reader)
 
-            # Check if the mobile number already exists
             for row in csv_reader:
-                if row[7] == mobile_number:  # Assuming mobile number is stored at index 7
+                if row[7] == mobile_number:
                     return True
     except FileNotFoundError:
-        # File not found, meaning no teams have been registered yet
         return False
     return False
 
-# Handle the confirmation button click
 @bot.callback_query_handler(func=lambda call: call.data == "confirm")
 def confirm_details(call):
+    user_id = call.from_user.id
+
+    # Check if the user has already confirmed
+    if user_id in confirmed_users:
+        bot.answer_callback_query(call.id, "You have already confirmed your details!")
+        return
+
     bot.answer_callback_query(call.id)
+    confirmed_users.add(user_id)  # Add the user to the set of confirmed users
 
     bot.send_message(call.message.chat.id, "Details confirmed. Thank you!")
-    
-    # Only attempt to edit the message if there is a reply markup to remove
+
     if call.message.reply_markup is not None:
         try:
-            # Attempt to remove the reply markup
             bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except telebot.apihelper.ApiTelegramException as e:
-            # Handle the exception if the message cannot be modified
             print(f"Error while trying to edit message: {e}")
 
-    # Save the team info to a CSV file named 'players.csv'
     save_team_info_to_csv()
-
-    # Handle team confirmation and print elapsed time
     handle_team_confirmation()
 
 def save_team_info_to_csv():
-    """Function to save the current team info to a CSV file."""
     global team_info
     with open("players.csv", mode='a+', newline='') as file:
-        file.seek(0)  # Move to the start of the file
-        is_empty = file.read(1) == ''  # Check if the file is empty
-        
+        file.seek(0)
+        is_empty = file.read(1) == ''
+
         csv_writer = csv.writer(file)
-        
-        # If file is empty, write the header first
+
         if is_empty:
             csv_writer.writerow([
                 "Team Name", 
@@ -164,7 +164,6 @@ def save_team_info_to_csv():
                 "Telegram User ID"
             ])
         
-        # Write team information
         csv_writer.writerow([
             team_info.get("Team Name", ""),
             team_info.get("Team Leader Name", ""),
@@ -178,46 +177,64 @@ def save_team_info_to_csv():
         ])
 
 def get_team_name_by_user_id(telegram_user_id):
-    """Function to get the team name by the user's Telegram ID."""
     try:
         with open("players.csv", mode='r') as file:
             csv_reader = csv.reader(file)
-            next(csv_reader)  # Skip the header
+            next(csv_reader)
 
-            # Check if the user's Telegram ID already exists
             for row in csv_reader:
-                if row[8] == str(telegram_user_id):  # Assuming Telegram user ID is at index 8
-                    return row[0]  # Return the team name
+                if row[8] == str(telegram_user_id):
+                    return row[0]
     except FileNotFoundError:
-        # File not found, meaning no teams have been registered yet
         return None
     return None
 
 def handle_team_confirmation():
-    """Handle a single team's confirmation and display their team number."""
     global team_info
     if team_info:
-        all_team_info.append(team_info)  # Save team info details
+        all_team_info.append(team_info)
 
         if len(all_team_info) == MAX_TEAMS:
             create_and_display_team_sets()
 
 def create_and_display_team_sets():
-    """Create and assign riddles to sets of teams and send riddles to the respective teams."""
     global team_sets
     sets = [all_team_info[i:i+2] for i in range(0, len(all_team_info), 2)]
 
     for idx, team_set in enumerate(sets, start=1):
         set_key = f"Set {idx}"
-        riddle = riddles[idx - 1] if idx <= len(riddles) else "No riddle assigned."
+        riddle = riddles[idx - 1]["question"] if idx <= len(riddles) else "No riddle assigned."
         team_sets[set_key] = {
             "teams": team_set,
             "riddle": riddle
         }
 
-        # Send the riddle to each team in the set
         for team in team_set:
-            bot.send_message(team["Telegram User ID"], f"🧩 *Your Riddle:* {riddle}", parse_mode='Markdown')
+            user_riddle_index[team["Telegram User ID"]] = 0  # Start at the first riddle
+            try:
+                bot.send_message(team["Telegram User ID"], f"🧩 *Your Riddle:* {riddle}", parse_mode='Markdown')
+            except Exception as e:
+                print(f"Error sending riddle to {team['Team Name']}: {e}")
+
+def check_answer(message):
+    user_id = message.from_user.id
+    current_index = user_riddle_index.get(user_id, 0)
+
+    if current_index < len(riddles):
+        correct_answer = riddles[current_index]["answer"].lower()
+        if message.text.strip().lower() == correct_answer:
+            user_riddle_index[user_id] += 1
+            next_index = user_riddle_index[user_id]
+
+            if next_index < len(riddles):
+                next_riddle = riddles[next_index]["question"]
+                bot.send_message(message.chat.id, f"Correct! Here is your next riddle:\n\n🧩 *{next_riddle}*", parse_mode='Markdown')
+            else:
+                bot.send_message(message.chat.id, "Congratulations! You have solved all the riddles!")
+        else:
+            bot.send_message(message.chat.id, "Incorrect! Please try again.")
+    else:
+        bot.send_message(message.chat.id, "You have completed all the riddles. Well done!")
 
 if __name__ == "__main__":
     bot.polling()
