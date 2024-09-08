@@ -9,7 +9,17 @@ team_info = {}
 all_team_info = []
 team_sets = {}  # Dictionary to store sets of teams
 
-MAX_TEAMS = 6  # Maximum number of teams allowed
+MAX_TEAMS = 4  # Maximum number of teams allowed
+
+# Example riddles to be assigned to each set
+riddles = [
+    "I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?",
+    "I’m light as a feather, yet the strongest man can’t hold me for more than 5 minutes. What am I?",
+    "The more you take, the more you leave behind. What am I?",
+    "What has keys but can’t open locks?",
+    "What can travel around the world while staying in a corner?",
+    "What has a head, a tail, but no body?"
+]
 
 # Function to handle the team leader's mobile number input
 @bot.message_handler(commands=['start'])
@@ -177,7 +187,7 @@ def get_team_name_by_user_id(telegram_user_id):
             # Check if the user's Telegram ID already exists
             for row in csv_reader:
                 if row[8] == str(telegram_user_id):  # Assuming Telegram user ID is at index 8
-                    return None#row[0]  # Return the team name
+                    return row[0]  # Return the team name
     except FileNotFoundError:
         # File not found, meaning no teams have been registered yet
         return None
@@ -193,23 +203,21 @@ def handle_team_confirmation():
             create_and_display_team_sets()
 
 def create_and_display_team_sets():
-    """Create and display sets of teams in both console and Telegram, and store them in a dictionary."""
+    """Create and assign riddles to sets of teams and send riddles to the respective teams."""
     global team_sets
     sets = [all_team_info[i:i+2] for i in range(0, len(all_team_info), 2)]
-    sets_message = "Teams have been divided into sets:\n"
 
     for idx, team_set in enumerate(sets, start=1):
         set_key = f"Set {idx}"
-        team_sets[set_key] = team_set
-        sets_message += f"\n{set_key}:\n"
+        riddle = riddles[idx - 1] if idx <= len(riddles) else "No riddle assigned."
+        team_sets[set_key] = {
+            "teams": team_set,
+            "riddle": riddle
+        }
+
+        # Send the riddle to each team in the set
         for team in team_set:
-            sets_message += f" - {team['Team Name']}\n"
-
-    print(sets_message)
-
-    # Send the sets information to each team member via Telegram
-    for team in all_team_info:
-        bot.send_message(team["Telegram User ID"], sets_message)
+            bot.send_message(team["Telegram User ID"], f"🧩 *Your Riddle:* {riddle}", parse_mode='Markdown')
 
 if __name__ == "__main__":
     bot.polling()
