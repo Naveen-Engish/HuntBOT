@@ -7,6 +7,7 @@ bot = telebot.TeleBot("6984563188:AAGCTJwsjeJnDclHTxI24H0D8twp5Tlr-JY")
 # Global dictionary to store team information
 team_info = {}
 all_team_info = []
+team_sets = {}  # Dictionary to store sets of teams
 
 MAX_TEAMS = 6  # Maximum number of teams allowed
 
@@ -189,15 +190,18 @@ def handle_team_confirmation():
         all_team_info.append(team_info)  # Save team info details
 
         if len(all_team_info) == MAX_TEAMS:
-            display_team_sets()
+            create_and_display_team_sets()
 
-def display_team_sets():
-    """Display sets of teams in both console and Telegram."""
+def create_and_display_team_sets():
+    """Create and display sets of teams in both console and Telegram, and store them in a dictionary."""
+    global team_sets
     sets = [all_team_info[i:i+2] for i in range(0, len(all_team_info), 2)]
     sets_message = "Teams have been divided into sets:\n"
 
     for idx, team_set in enumerate(sets, start=1):
-        sets_message += f"\nSet {idx}:\n"
+        set_key = f"Set {idx}"
+        team_sets[set_key] = team_set
+        sets_message += f"\n{set_key}:\n"
         for team in team_set:
             sets_message += f" - {team['Team Name']}\n"
 
