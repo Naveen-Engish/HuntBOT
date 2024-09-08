@@ -11,7 +11,7 @@ all_team_info = []
 
 # Start the clock when the script is first run
 start_time = time.time()
-TIME_LIMIT_SECONDS = 1000  # Set the time limit to 30 seconds
+TIME_LIMIT_SECONDS = 10  # Set the time limit to 1000 seconds
 
 # Function to handle the team leader's mobile number input
 @bot.message_handler(commands=['start'])
@@ -27,6 +27,13 @@ def start(message):
 
 @bot.message_handler(func=lambda message: True)
 def get_mobile_number(message):
+    # Check if the user is already registered
+    telegram_user_id = message.from_user.id
+    team_name = get_team_name_by_user_id(telegram_user_id)
+    if team_name:
+        bot.send_message(message.chat.id, f"You're already registered! Welcome back, team '{team_name}'.")
+        return
+
     # Check if 30 seconds have passed
     elapsed_time = time.time() - start_time
     if elapsed_time > TIME_LIMIT_SECONDS:
@@ -34,7 +41,7 @@ def get_mobile_number(message):
         return
 
     mobile_number = message.text
-    telegram_user_id = message.from_user.id  # Capture the Telegram user ID
+
     global team_info  # Ensure that we're modifying the global team_info dictionary
 
     if is_team_already_registered(mobile_number):
